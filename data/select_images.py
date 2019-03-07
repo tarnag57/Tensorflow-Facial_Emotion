@@ -1,5 +1,6 @@
 import pandas as pd
 import azure_query_helper
+import time
 
 # Labels of selfie images
 names = [
@@ -66,7 +67,9 @@ df = pd.read_csv("Selfie-dataset/selfie_dataset.txt", sep=" ", names=names)
 # Filtering for not suitable images
 filtered = df.loc[(df['is_partial'] < 0) & (df['is_showing_cellphone'] < 0) & (df['is_using_mirror'] < 0)]
 filtered = filtered.reset_index(drop=True)
-sample = filtered.loc[:99]
+sample = filtered.loc[6000:6499]
+filename = "selected_6000_6499.csv"
+cycle = 0
 
 # Storing query results
 query_results = pd.DataFrame(columns=output_labels)
@@ -74,42 +77,64 @@ query_results = pd.DataFrame(columns=output_labels)
 not_found_count = 0
 
 # Looping over rows
-for index, row in sample.iterrows():
+try:
+    for index, row in sample.iterrows():
 
-    # Query image
-    image_path = "Selfie-dataset/images/{}.jpg".format(row['image_name'])
-    raw_json = azure_query_helper.query_picture(image_path)
-    if not raw_json:
-        print("Could not find face on {}".format(row['image_name']))
-        not_found_count += 1
-        continue
-    raw_face_data = raw_json[0]
+        if cycle % 20 == 0 and cycle > 0:
+            print("Finished {} queries".format(index))
+            print("\n")
+            print("Waiting for batch no. {}".format(index / 20))
+            time.sleep(57)
 
-    # Parsing raw JSON
-    face_rect = raw_face_data['faceRectangle']
-    emotions = raw_face_data['faceAttributes']['emotion']
+        # Query image
+        cycle += 1
+        image_path = "Selfie-dataset/images/{}.jpg".format(row['image_name'])
+        raw_json = azure_query_helper.query_picture(image_path)
+        if not raw_json:
+            print("Could not find face on {}".format(row['image_name']))
+            not_found_count += 1
+            continue
 
-    entry = {
-        'image_name': row['image_name'],
-        'face_top': face_rect['top'],
-        'face_left': face_rect['left'],
-        'face_width': face_rect['width'],
-        'face_height': face_rect['height'],
-        'anger': emotions['anger'],
-        'contempt': emotions['contempt'],
-        'disgust': emotions['disgust'],
-        'fear': emotions['fear'],
-        'happiness': emotions['happiness'],
-        'neutral': emotions['neutral'],
-        'sadness': emotions['sadness'],
-        'surprise': emotions['surprise'],
-        'is_tongue_out': row['is_tongue_out'],
-        'is_duck_face': row['is_duck_face']
-    }
-    query_results.loc[index] = entry
+        try:
+            raw_face_data = raw_json[0]
 
-print("Finished querying.")
-print("{} faces were not found".format(not_found_count))
-print(query_results)
+            # Parsing raw JSON
+            face_rect = raw_face_data['faceRectangle']
+            emotions = raw_face_data['faceAttributes']['emotion']
 
-query_results.to_csv("selected.csv", index=None, header=True)
+            entry = {
+                'image_name': row['image_name'],
+                'face_top': face_rect['top'],
+                'face_left': face_rect['left'],
+                'face_width': face_rect['width'],
+                'face_height': face_rect['height'],
+                'anger': emotions['anger'],
+                'contempt': emotions['contempt'],
+                'disgust': emotions['disgust'],
+                'fear': emotions['fear'],
+                'happiness': emotions['happiness'],
+                'neutral': emotions['neutral'],
+                'sadness': emotions['sadness'],
+                'surprise': emotions['surprise'],
+                'is_tongue_out': row['is_tongue_out'],
+                'is_duck_face': row['is_duck_face']
+            }
+            query_results.loc[index] = entry
+
+        except:
+            print("An error happened while parsing {}".format(row['image_name']))
+            print(raw_json)
+            print("\n")
+
+    print("\n\n")
+    print("========================")
+    print("Finished querying.")
+    print("{} faces were not found".format(not_found_count))
+    print(query_results)
+
+    query_results.to_csv(filename, index=None, header=True)
+
+except Exception:
+    print("An error occurred, saving dataframe so-far...")
+    query_results.to_csv(filename, index=None, header=True)
+    print(Exception)

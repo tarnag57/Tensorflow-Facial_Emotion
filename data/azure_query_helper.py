@@ -21,5 +21,4 @@ def query_picture(image_path):
         data=image_data
     )
     raw_json = response.json()
-    print(raw_json)
     return raw_json
