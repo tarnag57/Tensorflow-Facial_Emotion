@@ -2,3 +2,4 @@
 **api_keys.py
 **/images
 **__pycache__/
+**.tfrecord
