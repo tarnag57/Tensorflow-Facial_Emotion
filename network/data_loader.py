@@ -1,64 +1,60 @@
-from __future__ import absolute_import, division, print_function
 import tensorflow as tf
-import pandas as pd
 
-tf.enable_eager_execution()
+BATCH_SIZE = 10
+REPEAT_INFINITELY = False
+data_file_name = 'labelled_selfies.tfrecord'
 
-# The following functions can be used to convert a value to a type compatible
-# with tf.Example.
+# Create a dictionary describing the features.
+image_feature_description = {
+    'raw_image': tf.FixedLenFeature([], tf.string),
+    'image_name': tf.FixedLenFeature([], tf.string),
+    'face_width': tf.FixedLenFeature([], tf.float32),
+    'face_height': tf.FixedLenFeature([], tf.float32),
 
-def _bytes_feature(value):
-    """Returns a bytes_list from a string / byte."""
-    return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+    'anger': tf.FixedLenFeature([], tf.int64),
+    'contempt': tf.FixedLenFeature([], tf.int64),
+    'disgust': tf.FixedLenFeature([], tf.int64),
+    'fear': tf.FixedLenFeature([], tf.int64),
+    'happiness': tf.FixedLenFeature([], tf.int64),
+    'neutral': tf.FixedLenFeature([], tf.int64),
+    'sadness': tf.FixedLenFeature([], tf.int64),
+    'surprise': tf.FixedLenFeature([], tf.int64),
+    'is_tongue_out': tf.FixedLenFeature([], tf.int64),
+    'is_duck_face': tf.FixedLenFeature([], tf.int64),
 
-def _float_feature(value):
-    """Returns a float_list from a float / double."""
-    return tf.train.Feature(float_list=tf.train.FloatList(value=[value]))
-
-def _int64_feature(value):
-    """Returns an int64_list from a bool / enum / int / uint."""
-    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+    'face_cent_x': tf.FixedLenFeature([], tf.float32),
+    'face_cent_y': tf.FixedLenFeature([], tf.float32),
+}
 
 
-df = pd.read_csv('../data/result.csv')
-print(df)
+def _parse_image_function(example_proto):
+    # Parse the input tf.Example proto using the dictionary above.
+    sample = tf.parse_single_example(example_proto, image_feature_description)
+    sample['raw_image'] = tf.image.decode_image(sample['raw_image'])
+    return sample
 
-with tf.python_io.TFRecordWriter('labelled_selfies.tfrecord') as writer:
-    # Filling up each list
-    for index, row in df.iterrows():
 
-        # Looking up JPG
-        rel_file_name = "../data/Selfie-dataset/images/{}.jpg".format(row['image_name'])
-        raw_image = open(rel_file_name, 'rb').read()
+# Loads the dataset with the defined flags and returns an iterator
+def load_data_set():
+    dataset = tf.data.TFRecordDataset(data_file_name)
+    dataset = dataset.map(_parse_image_function)  # Parse the record into tensors.
+    if REPEAT_INFINITELY:
+        dataset = dataset.repeat()  # Repeat the input indefinitely.
+    dataset = dataset.batch(BATCH_SIZE)
+    return dataset.make_initializable_iterator()
 
-        # One-hot coding attributes
-        attributes = row['anger':'is_duck_face']
-        max_attr = max(attributes)
 
-        # Creating TFRecord
-        feature_dict = {
-            'raw_image': _bytes_feature(raw_image),
-            'image_name': _bytes_feature(row['image_name'].encode('utf-8')),
-            'face_width': _float_feature(row['face_width']),
-            'face_height': _float_feature(row['face_height']),
-
-            'anger': _int64_feature(row['anger'] == max_attr),
-            'contempt': _int64_feature(row['contempt'] == max_attr),
-            'disgust': _int64_feature(row['disgust'] == max_attr),
-            'fear': _int64_feature(row['fear'] == max_attr),
-            'happiness': _int64_feature(row['happiness'] == max_attr),
-            'neutral': _int64_feature(row['neutral'] == max_attr),
-            'sadness': _int64_feature(row['sadness'] == max_attr),
-            'surprise': _int64_feature(row['surprise'] == max_attr),
-            'is_tongue_out': _int64_feature(row['is_tongue_out'] == max_attr),
-            'is_duck_face': _int64_feature(row['is_duck_face'] == max_attr),
-
-            'face_cent_x': _float_feature(row['face_cent_x']),
-            'face_cent_y': _float_feature(row['face_cent_y']),
-        }
-
-        example = tf.train.Example(features=tf.train.Features(feature=feature_dict))
-
-        # Write to disk
-        writer.write(example.SerializeToString())
-
+# Counting the no. of elements
+def count_elements_in_dataset(iterator):
+    with tf.Session() as sess:
+        sess.run(iterator.initializer)
+        c = 0
+        while True:
+            try:
+                sess.run(iterator.get_next())
+                c += BATCH_SIZE
+                if c % 100 == 0:
+                    print("{} an counting...".format(c))
+            except tf.errors.OutOfRangeError:
+                print(c)
+                break
