@@ -97,6 +97,9 @@ def get_first_element_in_dataset(iterator):
 # model.summary()
 
 model.fit(train, epochs=EPOCH_NUM, steps_per_epoch=steps_per_epoch)
-score = model.evaluate(test, steps=1)
+score = model.evaluate(test, steps=TEST_SIZE)
 print("\nTest evaluation:")
 print(score)
+print('==============')
+print()
+tf.contrib.saved_model.save_keras_model(model, './model/location/07_22_1.h5')

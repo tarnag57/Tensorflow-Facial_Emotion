@@ -5,7 +5,6 @@ layers = tf.keras.layers
 
 config = tf.ConfigProto()
 config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
-config.log_device_placement = True  # to log device placement (on which device the operation ran)
 sess = tf.Session(config=config)
 tf.keras.backend.set_session(sess)
 
@@ -63,7 +62,7 @@ model = tf.keras.Sequential([
         activation=tf.nn.relu
     ),
     layers.Dropout(
-        rate=0.25
+        rate=0.05
     ),
     layers.Dense(
         units=4,
