@@ -1,6 +1,13 @@
 import tensorflow as tf
 
+
 layers = tf.keras.layers
+
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+config.log_device_placement = True  # to log device placement (on which device the operation ran)
+sess = tf.Session(config=config)
+tf.keras.backend.set_session(sess)
 
 model = tf.keras.Sequential([
     layers.Conv2D(
