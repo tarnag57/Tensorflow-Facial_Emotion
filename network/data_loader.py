@@ -1,10 +1,9 @@
 import tensorflow as tf
 import numpy as np
-import math
-from model import model
+import model
 
 BATCH_SIZE = 16
-EPOCH_NUM = 10
+EPOCH_NUM = 50
 TEST_SIZE = 500
 SHUFFLE_BUFFER = 500
 TOTAL_NUM = 5110
@@ -92,6 +91,8 @@ def get_first_element_in_dataset(iterator):
         return data
 
 
+model.initialize_gpu()
+model = model.get_location_model()
 (train, test) = load_data_set()
 # print(get_first_element_in_dataset(train.make_initializable_iterator())[1].shape)
 # model.summary()
@@ -102,4 +103,4 @@ print("\nTest evaluation:")
 print(score)
 print('==============')
 print()
-tf.contrib.saved_model.save_keras_model(model, './model/location/07_22_1.h5')
+model.save('./model/location/08_17_1.h5')
